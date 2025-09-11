@@ -1,0 +1,14 @@
+{
+  "name": "compressed-size-action-demo",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "build": "microbundle -f cjs --define 'navigator={}' --compress --no-sourcemap --target node src/index.js"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "@actions/core": "^1.2.6",
+    "@actions/github": "^4.0.0",
+    "size-plugin-core": "0.0.9"
+  }
+}
