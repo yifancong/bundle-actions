@@ -27,6 +27,7 @@ jobs:
 
       - name: Install Dependencies
         run: pnpm install --ignore-scripts
+        run: pnpm run build
 
       - name: Report Compressed Size
         uses: ./
