@@ -1,7 +1,8 @@
 import { getInput, setFailed } from '@actions/core';
 import { context, getOctokit } from '@actions/github';
 import SizePlugin from 'size-plugin-core';
-import artifact from '@actions/artifact';
+import { DefaultArtifactClient } from '@actions/artifact';
+import * as fs from 'fs';
 import path from 'path';
 import { GitHub } from '@actions/github/lib/utils';
 
@@ -18,6 +19,7 @@ async function run(octokit: InstanceType<typeof GitHub>, ctx: typeof context, to
     
     // 获取工作流运行列表
     const { owner, repo } = context.repo;
+
     const runsResponse = await octokit.rest.actions.listWorkflowRuns({
       owner,
       repo,
@@ -28,8 +30,8 @@ async function run(octokit: InstanceType<typeof GitHub>, ctx: typeof context, to
 
     // 如果有之前的运行记录，下载其构建产物
     let oldSizes = newSizes;
-    if (runsResponse.data.total_count > 0) {
-      const artifactClient = artifact.create();
+    if (runsResponse.data.workflow_runs.length > 0) {
+      const artifactClient = new DefaultArtifactClient();
       const { data: artifacts } = await octokit.rest.actions.listWorkflowRunArtifacts({
         owner,
         repo,
@@ -40,8 +42,13 @@ async function run(octokit: InstanceType<typeof GitHub>, ctx: typeof context, to
         const downloadResponse = await artifactClient.downloadArtifact(
           artifacts.artifacts[0].id
         );
-        const artifactBuffer = await fs.promises.readFile(downloadResponse.downloadPath);
-        oldSizes = JSON.parse(artifactBuffer.toString());
+        if (downloadResponse.downloadPath) {
+          const snapshotPath = path.join(downloadResponse.downloadPath, 'size-snapshot.json');
+          if (fs.existsSync(snapshotPath)) {
+            const artifactBuffer = await fs.promises.readFile(snapshotPath);
+            oldSizes = JSON.parse(artifactBuffer.toString());
+          }
+        }
       }
     }
 
@@ -54,10 +61,17 @@ async function run(octokit: InstanceType<typeof GitHub>, ctx: typeof context, to
     console.log(cliText);
 
     // 上传当前大小数据作为构建产物
-    await artifact.uploadArtifact(
+    const snapshotPath = path.join(process.cwd(), 'size-snapshot.json');
+    await fs.promises.writeFile(snapshotPath, JSON.stringify(newSizes));
+
+    const artifactClient = new DefaultArtifactClient();
+    await artifactClient.uploadArtifact(
       'size-snapshot',
-      [path.join(process.cwd(), 'artifacts', '1.json')],
-      process.cwd()
+      [snapshotPath],
+      process.cwd(),
+      {
+        retentionDays: 90
+      }
     );
 
   } catch (e) {
