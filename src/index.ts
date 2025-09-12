@@ -17,14 +17,10 @@ async function run(octokit: InstanceType<typeof GitHub>, ctx: typeof context, to
     const newSizes = await plugin.readFromDisk(process.cwd());
     
     // 获取工作流运行列表
-    const repo = ctx.payload.repository;
-    if (!repo) {
-      throw new Error('Repository owner or name is missing');
-    }
-    
+    const { owner, repo } = context.repo;
     const runsResponse = await octokit.rest.actions.listWorkflowRuns({
-      owner: repo.owner.login,
-      repo: repo.name,
+      owner,
+      repo,
       branch: getInput('branch') || context.ref.replace('refs/heads/', ''),
       status: 'completed',
       per_page: 1
@@ -33,15 +29,19 @@ async function run(octokit: InstanceType<typeof GitHub>, ctx: typeof context, to
     // 如果有之前的运行记录，下载其构建产物
     let oldSizes = newSizes;
     if (runsResponse.data.total_count > 0) {
+      const artifactClient = artifact.create();
       const { data: artifacts } = await octokit.rest.actions.listWorkflowRunArtifacts({
-        owner: repo.owner.login,
-        repo: repo.name,
+        owner,
+        repo,
         run_id: runsResponse.data.workflow_runs[0].id
       });
 
-      if (artifacts.total_count > 0) {
-        const downloadResponse = await artifact.downloadArtifact(artifacts.artifacts[0].id);
-        oldSizes = JSON.parse(downloadResponse.toString());
+      if (artifacts.artifacts.length > 0) {
+        const downloadResponse = await artifactClient.downloadArtifact(
+          artifacts.artifacts[0].id
+        );
+        const artifactBuffer = await fs.promises.readFile(downloadResponse.downloadPath);
+        oldSizes = JSON.parse(artifactBuffer.toString());
       }
     }
 

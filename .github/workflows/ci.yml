@@ -31,5 +31,8 @@ jobs:
       - name: Report Compressed Size
         uses: ./
         with:
-          repo-token: "${{ secrets.GITHUB_TOKEN }}"
-          pattern: index.js
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+          compression: 'gzip'
+          pattern: '**/dist/**/*.{js,mjs,cjs}'
+          exclude: '{**/*.map,**/node_modules/**}'
+          branch: 'main'
