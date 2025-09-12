@@ -3,11 +3,11 @@
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
-    "build": "microbundle -f cjs --define 'navigator={}' --compress --no-sourcemap --target node src/index.js"
+    "build": "rslib build"
   },
   "license": "MIT",
   "devDependencies": {
-    "microbundle": "^0.12.4"
+    "@rslib/core": "^0.13.2"
   },
   "dependencies": {
     "@actions/artifact": "^2.3.2",
