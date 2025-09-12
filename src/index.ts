@@ -16,14 +16,14 @@ async function run(octokit: InstanceType<typeof GitHub>, ctx: typeof context, to
 
     // 读取当前文件大小
     const newSizes = await plugin.readFromDisk(process.cwd());
-    
+    console.log(JSON.stringify(ctx))
     // 获取工作流运行列表
-    const { owner, repo } = context.repo;
+    const { owner, repo } = ctx.repo;
 
     const runsResponse = await octokit.rest.actions.listWorkflowRuns({
       owner,
       repo,
-      branch: getInput('branch') || context.ref.replace('refs/heads/', ''),
+      branch: getInput('branch') || ctx.ref.replace('refs/heads/', ''),
       status: 'completed',
       per_page: 1
     });
