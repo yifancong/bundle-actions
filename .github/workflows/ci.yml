@@ -25,9 +25,10 @@ jobs:
           node-version: 22.x
           cache: 'pnpm'
 
-      - name: Install Dependencies
-        run: pnpm install --ignore-scripts
-        run: pnpm run build
+      - name: Install Dependencies and Build
+        run: |
+          pnpm install --ignore-scripts
+          pnpm run build
 
       - name: Report Compressed Size
         uses: ./
