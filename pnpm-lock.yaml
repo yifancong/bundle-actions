@@ -17,12 +17,13 @@ importers:
       '@actions/github':
         specifier: ^4.0.0
         version: 4.0.0
-      microbundle:
-        specifier: ^0.12.4
-        version: 0.12.4
       size-plugin-core:
         specifier: 0.0.9
         version: 0.0.9
+    devDependencies:
+      microbundle:
+        specifier: ^0.12.4
+        version: 0.12.4
 
 packages:
 
