@@ -1,4 +1,4 @@
-import { setFailed } from '@actions/core';
+import { setFailed, summary } from '@actions/core';
 import { DefaultArtifactClient } from '@actions/artifact';
 import path from 'path';
 import * as fs from 'fs';
@@ -44,6 +44,21 @@ import * as fs from 'fs';
     console.log('--- Downloaded Artifact JSON Data ---');
     console.log(jsonData);
     console.log('------------------------------------');
+
+    // Generate and write summary table
+    if (Array.isArray(jsonData) && jsonData.length > 0) {
+      const headers = Object.keys(jsonData[0]);
+      const headerRow = headers.map(h => ({ data: h, header: true }));
+      const bodyRows = jsonData.map(row => headers.map(header => String(row[header] ?? '')));
+
+      await summary
+        .addHeading('Artifact Content')
+        .addTable([headerRow, ...bodyRows])
+        .write();
+      console.log('Successfully wrote artifact content to job summary.');
+    } else {
+      console.log('JSON data is not an array or is empty, skipping table generation.');
+    }
 
   } catch (error) {
     if (error instanceof Error) {
