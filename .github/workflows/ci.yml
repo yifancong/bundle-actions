@@ -31,7 +31,7 @@ jobs:
           pnpm run build
 
       - name: Report Compressed Size
-        uses: ./dist/index.js
+        uses: ./
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
           compression: 'gzip'
