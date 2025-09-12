@@ -1,7 +1,8 @@
 import { getInput, setFailed } from '@actions/core';
 import { context, getOctokit } from '@actions/github';
 import SizePlugin from 'size-plugin-core';
-import * as artifact from '@actions/artifact';
+import artifact from '@actions/artifact';
+import path from 'path';
 
 async function run(octokit, context, token) {
   try {
@@ -27,7 +28,6 @@ async function run(octokit, context, token) {
     // 如果有之前的运行记录，下载其构建产物
     let oldSizes = newSizes;
     if (runsResponse.data.total_count > 0) {
-      const artifactClient = artifact.create();
       const { data: artifacts } = await octokit.rest.actions.listWorkflowRunArtifacts({
         owner: repository.owner.login,
         repo: repository.name,
@@ -35,7 +35,7 @@ async function run(octokit, context, token) {
       });
 
       if (artifacts.total_count > 0) {
-        const downloadResponse = await artifactClient.downloadArtifact(artifacts.artifacts[0].id);
+        const downloadResponse = await artifact.downloadArtifact(artifacts.artifacts[0].id);
         oldSizes = JSON.parse(downloadResponse.toString());
       }
     }
@@ -49,12 +49,10 @@ async function run(octokit, context, token) {
     console.log(cliText);
 
     // 上传当前大小数据作为构建产物
-    const artifactClient = artifact.create();
-    await artifactClient.uploadArtifact(
+    await artifact.uploadArtifact(
       'size-snapshot',
-      [Buffer.from(JSON.stringify(newSizes))],
-      process.cwd(),
-      { continueOnError: false }
+      [path.join(process.cwd(), 'artifacts', '1.json')],
+      process.cwd()
     );
 
   } catch (e) {
