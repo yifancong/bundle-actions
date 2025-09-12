@@ -14,6 +14,9 @@ inputs:
     description: 'minimatch pattern of files to track'
   exclude:
     description: 'minimatch pattern of files NOT to track'
+  branch:
+    description: 'The branch to compare against (defaults to current branch)'
+    required: false
 
 runs:
   using: 'node20'

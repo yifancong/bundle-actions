@@ -1,6 +1,7 @@
 import { getInput, setFailed } from '@actions/core';
 import { context, getOctokit } from '@actions/github';
 import SizePlugin from 'size-plugin-core';
+import * as artifact from '@actions/artifact';
 
 async function run(octokit, context, token) {
   try {
@@ -13,8 +14,31 @@ async function run(octokit, context, token) {
     // 读取当前文件大小
     const newSizes = await plugin.readFromDisk(process.cwd());
     
-    // 读取基准文件大小
-    const oldSizes = await plugin.readFromDisk(process.cwd());
+    // 获取工作流运行列表
+    const { repository } = context;
+    const runsResponse = await octokit.rest.actions.listWorkflowRuns({
+      owner: repository.owner.login,
+      repo: repository.name,
+      branch: getInput('branch') || context.ref.replace('refs/heads/', ''),
+      status: 'completed',
+      per_page: 1
+    });
+
+    // 如果有之前的运行记录，下载其构建产物
+    let oldSizes = newSizes;
+    if (runsResponse.data.total_count > 0) {
+      const artifactClient = artifact.create();
+      const { data: artifacts } = await octokit.rest.actions.listWorkflowRunArtifacts({
+        owner: repository.owner.login,
+        repo: repository.name,
+        run_id: runsResponse.data.workflow_runs[0].id
+      });
+
+      if (artifacts.total_count > 0) {
+        const downloadResponse = await artifactClient.downloadArtifact(artifacts.artifacts[0].id);
+        oldSizes = JSON.parse(downloadResponse.toString());
+      }
+    }
 
     // 计算差异
     const diff = await plugin.getDiff(oldSizes, newSizes);
@@ -23,6 +47,15 @@ async function run(octokit, context, token) {
     const cliText = await plugin.printSizes(diff);
     console.log('Size Differences:');
     console.log(cliText);
+
+    // 上传当前大小数据作为构建产物
+    const artifactClient = artifact.create();
+    await artifactClient.uploadArtifact(
+      'size-snapshot',
+      [Buffer.from(JSON.stringify(newSizes))],
+      process.cwd(),
+      { continueOnError: false }
+    );
 
   } catch (e) {
     setFailed(e.message);
