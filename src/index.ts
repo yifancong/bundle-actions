@@ -45,11 +45,21 @@ import * as fs from 'fs';
     console.log(jsonData);
     console.log('------------------------------------');
 
+    // Ensure jsonData is an array for table generation
+    const dataForTable = Array.isArray(jsonData) ? jsonData : [jsonData];
+
     // Generate and write summary table
-    if (Array.isArray(jsonData) && jsonData.length > 0) {
-      const headers = Object.keys(jsonData[0]);
+    if (dataForTable.length > 0) {
+      const headers = Object.keys(dataForTable[0]);
       const headerRow = headers.map(h => ({ data: h, header: true }));
-      const bodyRows = jsonData.map(row => headers.map(header => String(row[header] ?? '')));
+      const bodyRows = dataForTable.map(row => headers.map(header => {
+        const cellData = row[header];
+        // Stringify objects/arrays for proper display in the table
+        if (typeof cellData === 'object' && cellData !== null) {
+          return JSON.stringify(cellData);
+        }
+        return String(cellData ?? '');
+      }));
 
       await summary
         .addHeading('Artifact Content')
@@ -57,9 +67,8 @@ import * as fs from 'fs';
         .write();
       console.log('Successfully wrote artifact content to job summary.');
     } else {
-      console.log('JSON data is not an array or is empty, skipping table generation.');
+      console.log('JSON data is empty, skipping table generation.');
     }
-    console.log('Successfully completed artifact download and processing.');
 
   } catch (error) {
     if (error instanceof Error) {
