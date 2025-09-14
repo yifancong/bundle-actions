@@ -59,6 +59,7 @@ import * as fs from 'fs';
     } else {
       console.log('JSON data is not an array or is empty, skipping table generation.');
     }
+    console.log('Successfully completed artifact download and processing.');
 
   } catch (error) {
     if (error instanceof Error) {
