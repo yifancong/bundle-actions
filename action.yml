@@ -4,19 +4,17 @@ branding:
   icon: 'archive'
   color: 'purple'
 inputs:
-  repo-token:
+  github_token:
     description: 'The GITHUB_TOKEN secret'
     required: false
     default: ${{ github.token }}
-  compression:
-    description: 'The compression algorithm to use: "gzip" or "brotli"'
-  pattern:
-    description: 'minimatch pattern of files to track'
-  exclude:
-    description: 'minimatch pattern of files NOT to track'
-  branch:
-    description: 'The branch to compare against (defaults to current branch)'
+  file_path:
+    description: 'Path to the file to upload (relative to project root)'
+    required: true
+  target_branch:
+    description: 'The target branch to compare against (defaults to main)'
     required: false
+    default: 'main'
 
 runs:
   using: 'node20'

@@ -34,7 +34,5 @@ jobs:
         uses: ./
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
-          compression: 'gzip'
-          pattern: '**/dist/**/*.{js,mjs,cjs}'
-          exclude: '{**/*.map,**/node_modules/**}'
-          branch: 'main'
+          file_path: 'artifacts/example.json'
+          target_branch: 'main'
