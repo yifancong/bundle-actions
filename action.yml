@@ -1,4 +1,4 @@
-name: 'compressed-size-action-demo'
+name: '@yifancong/bundle-action'
 description: 'A simple demo for checking compressed size differences'
 branding:
   icon: 'archive'
