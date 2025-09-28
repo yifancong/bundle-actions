@@ -95,7 +95,15 @@ const DEFAULT_DEMO_DATA: SizeData = {
 export function parseRsdoctorData(filePath: string): BundleAnalysis | null {
   try {
     if (!fs.existsSync(filePath)) {
-      console.log(`Rsdoctor data file not found: ${filePath}`);
+      console.log(`❌ Rsdoctor data file not found: ${filePath}`);
+      console.log(`📁 Current working directory: ${process.cwd()}`);
+      console.log(`📂 Available files in current directory:`);
+      try {
+        const files = fs.readdirSync(process.cwd());
+        files.forEach(file => console.log(`  - ${file}`));
+      } catch (e) {
+        console.log(`  Error reading directory: ${e}`);
+      }
       return null;
     }
     

@@ -29,6 +29,24 @@ jobs:
         run: |
           pnpm install --ignore-scripts
           pnpm run build
+          
+      - name: Build Demo Project
+        run: |
+          cd examples/rsbuild-demo
+          pnpm install
+          pnpm run build
+          
+      - name: Verify Rsdoctor Data
+        run: |
+          if [ -f "examples/rsbuild-demo/dist/.rsdoctor/rsdoctor-data.json" ]; then
+            echo "✅ Rsdoctor data file found"
+            ls -la examples/rsbuild-demo/dist/.rsdoctor/
+          else
+            echo "❌ Rsdoctor data file not found"
+            echo "Available files in dist:"
+            find examples/rsbuild-demo/dist -type f 2>/dev/null || echo "No dist directory found"
+            exit 1
+          fi
 
       - name: Report Compressed Size
         uses: ./
