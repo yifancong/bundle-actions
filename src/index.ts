@@ -1,6 +1,6 @@
 import { setFailed, getInput } from '@actions/core';
 import { uploadArtifact } from './upload';
-import { downloadArtifact, downloadArtifactByCommitHash } from './download';
+import { downloadArtifactByCommitHash } from './download';
 import { GitHubService } from './github';
 import { loadSizeData, generateSizeReport, getDemoBaselineData } from './report';
 import path from 'path';

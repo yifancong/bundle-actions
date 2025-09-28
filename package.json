@@ -1,13 +1,38 @@
 {
-  "name": "compressed-size-action-demo",
-  "version": "1.0.0",
+  "name": "@yifancong/bundle-actions",
+  "version": "0.0.1",
+  "description": "A GitHub Action for bundle size analysis and reporting",
   "main": "index.js",
   "scripts": {
     "build": "rslib build"
   },
+  "files": [
+    "dist",
+    "action.yml",
+    "README.md"
+  ],
+  "keywords": [
+    "github-action",
+    "bundle-size",
+    "performance",
+    "analysis"
+  ],
+  "author": "yifancong",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yifancong/bundle-actions.git"
+  },
+  "homepage": "https://github.com/yifancong/bundle-actions#readme",
+  "bugs": {
+    "url": "https://github.com/yifancong/bundle-actions/issues"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
   "devDependencies": {
-    "@rslib/core": "^0.13.2"
+    "@rslib/core": "^0.13.2",
+    "@types/node": "^24.5.2"
   },
   "dependencies": {
     "@actions/artifact": "^2.3.2",
