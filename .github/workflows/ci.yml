@@ -33,6 +33,6 @@ jobs:
       - name: Report Compressed Size
         uses: ./
         with:
-          repo-token: ${{ secrets.GITHUB_TOKEN }}
+          repo-token: ${{ secrets.RSDOCTOR_CI_TOKEN }}
           file_path: 'examples/rsbuild-demo/dist/.rsdoctor/rsdoctor-data.json'
           target_branch: 'main'
