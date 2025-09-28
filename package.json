@@ -7,7 +7,7 @@
     "build": "rslib build"
   },
   "files": [
-    "dist",
+    "index.js",
     "action.yml",
     "README.md"
   ],

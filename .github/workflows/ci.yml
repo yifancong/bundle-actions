@@ -31,7 +31,7 @@ jobs:
           pnpm run build
 
       - name: Report Compressed Size
-        uses: ./dist/index.js
+        uses: ./index.js
         with:
           repo-token: ${{ secrets.RSDOCTOR_CI_TOKEN }}
           file_path: 'examples/rsbuild-demo/dist/.rsdoctor/rsdoctor-data.json'
