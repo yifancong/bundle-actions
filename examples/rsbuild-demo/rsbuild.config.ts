@@ -8,14 +8,13 @@ export default defineConfig({
     rspack: {
       plugins: [
         new RsdoctorRspackPlugin({
-          features: ['loader']
-          // disableClientServer: true,
-          // output: {
-          //   mode: 'brief',
-          //   options: {
-          //     type: ['json'],
-          //   }
-          // }
+          disableClientServer: true,
+          output: {
+            mode: 'brief',
+            options: {
+              type: ['json'],
+            }
+          }
         }),
       ],
     },

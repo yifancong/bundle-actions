@@ -2,7 +2,7 @@ import { setFailed, getInput } from '@actions/core';
 import { uploadArtifact } from './upload';
 import { downloadArtifactByCommitHash } from './download';
 import { GitHubService } from './github';
-import { loadSizeData, generateSizeReport, getDemoBaselineData } from './report';
+import { loadSizeData, generateSizeReport, getDemoBaselineData, parseRsdoctorData, generateBundleAnalysisReport, BundleAnalysis } from './report';
 import path from 'path';
 
 // Helper function to determine if this is a merge event
@@ -55,22 +55,28 @@ function isPullRequestEvent(): boolean {
       console.log(`✅ Successfully uploaded artifact with ID: ${uploadResponse.id}`);
       
       // Generate simple report for uploaded data
-      const currentSizeData = loadSizeData(fullPath);
-      if (currentSizeData) {
-        await generateSizeReport(currentSizeData);
+      const currentBundleAnalysis = parseRsdoctorData(fullPath);
+      if (currentBundleAnalysis) {
+        await generateBundleAnalysisReport(currentBundleAnalysis);
+      } else {
+        // Fallback to legacy format
+        const currentSizeData = loadSizeData(fullPath);
+        if (currentSizeData) {
+          await generateSizeReport(currentSizeData);
+        }
       }
       
     } else if (isPullRequestEvent()) {
       // MR 提交时：只下载目标分支的工件（如果存在）并生成比较报告
       console.log('📥 Detected pull request event - downloading target branch artifact if exists');
       
-      // Load current size data
-      const currentSizeData = loadSizeData(fullPath);
-      if (!currentSizeData) {
-        throw new Error(`Failed to load current size data from: ${fullPath}`);
+      // Load current bundle analysis
+      const currentBundleAnalysis = parseRsdoctorData(fullPath);
+      if (!currentBundleAnalysis) {
+        throw new Error(`Failed to load current bundle analysis from: ${fullPath}`);
       }
       
-      let baselineSizeData: any = null;
+      let baselineBundleAnalysis: BundleAnalysis | null = null;
       
       try {
         // Get target branch latest commit hash
@@ -85,14 +91,30 @@ function isPullRequestEvent(): boolean {
         try {
           const downloadResult = await downloadArtifactByCommitHash(targetCommitHash, fileName);
           const downloadedBaselinePath = path.join(downloadResult.downloadPath, fileName);
-          baselineSizeData = loadSizeData(downloadedBaselinePath);
+          baselineBundleAnalysis = parseRsdoctorData(downloadedBaselinePath);
+          if (!baselineBundleAnalysis) {
+            throw new Error('Failed to parse baseline rsdoctor data');
+          }
           console.log('✅ Successfully downloaded target branch artifact');
         } catch (downloadError) {
           console.log('ℹ️  No baseline data found - target branch artifact does not exist');
           console.log('📝 Using demo baseline data for comparison');
           
-          // Use built-in demo data as baseline for comparison
-          baselineSizeData = getDemoBaselineData();
+          // Use built-in demo data as baseline for comparison (convert to BundleAnalysis format)
+          const demoSizeData = getDemoBaselineData();
+          baselineBundleAnalysis = {
+            totalSize: demoSizeData.totalSize,
+            jsSize: demoSizeData.files.filter(f => f.path.endsWith('.js')).reduce((sum, f) => sum + f.size, 0),
+            cssSize: demoSizeData.files.filter(f => f.path.endsWith('.css')).reduce((sum, f) => sum + f.size, 0),
+            htmlSize: demoSizeData.files.filter(f => f.path.endsWith('.html')).reduce((sum, f) => sum + f.size, 0),
+            otherSize: demoSizeData.files.filter(f => !f.path.endsWith('.js') && !f.path.endsWith('.css') && !f.path.endsWith('.html')).reduce((sum, f) => sum + f.size, 0),
+            assets: demoSizeData.files.map(f => ({
+              path: f.path,
+              size: f.size,
+              type: f.path.endsWith('.js') ? 'js' as const : f.path.endsWith('.css') ? 'css' as const : f.path.endsWith('.html') ? 'html' as const : 'other' as const
+            })),
+            chunks: []
+          };
           console.log('✅ Successfully loaded demo baseline data');
         }
         
@@ -100,13 +122,26 @@ function isPullRequestEvent(): boolean {
         console.warn(`⚠️  Failed to get target branch commit: ${error}`);
         console.log('📝 Using demo baseline data for comparison');
         
-        // Use built-in demo data as baseline for comparison
-        baselineSizeData = getDemoBaselineData();
+        // Use built-in demo data as baseline for comparison (convert to BundleAnalysis format)
+        const demoSizeData = getDemoBaselineData();
+        baselineBundleAnalysis = {
+          totalSize: demoSizeData.totalSize,
+          jsSize: demoSizeData.files.filter(f => f.path.endsWith('.js')).reduce((sum, f) => sum + f.size, 0),
+          cssSize: demoSizeData.files.filter(f => f.path.endsWith('.css')).reduce((sum, f) => sum + f.size, 0),
+          htmlSize: demoSizeData.files.filter(f => f.path.endsWith('.html')).reduce((sum, f) => sum + f.size, 0),
+          otherSize: demoSizeData.files.filter(f => !f.path.endsWith('.js') && !f.path.endsWith('.css') && !f.path.endsWith('.html')).reduce((sum, f) => sum + f.size, 0),
+          assets: demoSizeData.files.map(f => ({
+            path: f.path,
+            size: f.size,
+            type: f.path.endsWith('.js') ? 'js' as const : f.path.endsWith('.css') ? 'css' as const : f.path.endsWith('.html') ? 'html' as const : 'other' as const
+          })),
+          chunks: []
+        };
         console.log('✅ Successfully loaded demo baseline data');
       }
       
       // Generate report card
-      await generateSizeReport(currentSizeData, baselineSizeData || undefined);
+      await generateBundleAnalysisReport(currentBundleAnalysis, baselineBundleAnalysis || undefined);
       
     } else {
       // 其他情况：默认行为（上传并尝试下载）
@@ -130,12 +165,19 @@ function isPullRequestEvent(): boolean {
         
         const downloadResult = await downloadArtifactByCommitHash(targetCommitHash, fileName);
         const downloadedBaselinePath = path.join(downloadResult.downloadPath, fileName);
-        const baselineSizeData = loadSizeData(downloadedBaselinePath);
+        const baselineBundleAnalysis = parseRsdoctorData(downloadedBaselinePath);
         
         // Generate report card
-        const currentSizeData = loadSizeData(fullPath);
-        if (currentSizeData) {
-          await generateSizeReport(currentSizeData, baselineSizeData || undefined);
+        const currentBundleAnalysis = parseRsdoctorData(fullPath);
+        if (currentBundleAnalysis) {
+          await generateBundleAnalysisReport(currentBundleAnalysis, baselineBundleAnalysis || undefined);
+        } else {
+          // Fallback to legacy format
+          const currentSizeData = loadSizeData(fullPath);
+          const baselineSizeData = loadSizeData(downloadedBaselinePath);
+          if (currentSizeData) {
+            await generateSizeReport(currentSizeData, baselineSizeData || undefined);
+          }
         }
         
         console.log('✅ Successfully downloaded target branch artifact');
@@ -144,10 +186,30 @@ function isPullRequestEvent(): boolean {
         console.log('📝 Using demo baseline data for comparison');
         
         // Generate report card with demo baseline
-        const currentSizeData = loadSizeData(fullPath);
-        if (currentSizeData) {
-          const demoBaseline = getDemoBaselineData();
-          await generateSizeReport(currentSizeData, demoBaseline);
+        const currentBundleAnalysis = parseRsdoctorData(fullPath);
+        if (currentBundleAnalysis) {
+          const demoSizeData = getDemoBaselineData();
+          const demoBaseline: BundleAnalysis = {
+            totalSize: demoSizeData.totalSize,
+            jsSize: demoSizeData.files.filter(f => f.path.endsWith('.js')).reduce((sum, f) => sum + f.size, 0),
+            cssSize: demoSizeData.files.filter(f => f.path.endsWith('.css')).reduce((sum, f) => sum + f.size, 0),
+            htmlSize: demoSizeData.files.filter(f => f.path.endsWith('.html')).reduce((sum, f) => sum + f.size, 0),
+            otherSize: demoSizeData.files.filter(f => !f.path.endsWith('.js') && !f.path.endsWith('.css') && !f.path.endsWith('.html')).reduce((sum, f) => sum + f.size, 0),
+            assets: demoSizeData.files.map(f => ({
+              path: f.path,
+              size: f.size,
+              type: f.path.endsWith('.js') ? 'js' as const : f.path.endsWith('.css') ? 'css' as const : f.path.endsWith('.html') ? 'html' as const : 'other' as const
+            })),
+            chunks: []
+          };
+          await generateBundleAnalysisReport(currentBundleAnalysis, demoBaseline);
+        } else {
+          // Fallback to legacy format
+          const currentSizeData = loadSizeData(fullPath);
+          if (currentSizeData) {
+            const demoBaseline = getDemoBaselineData();
+            await generateSizeReport(currentSizeData, demoBaseline);
+          }
         }
       }
     }
