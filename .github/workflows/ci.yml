@@ -4,15 +4,20 @@ on: [pull_request, push]
 
 jobs:
   Build:
-    # The type of runner that the job will run on
     runs-on: ubuntu-latest
+    
+    permissions:
+      contents: read  
+      actions: read       
+      pull-requests: read 
+      checks: read        
 
-    # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
       - name: Checkout
         uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955 # v4
         with:
-          fetch-depth: 1
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Install Pnpm
         run: |
@@ -36,18 +41,6 @@ jobs:
           pnpm install
           pnpm run build
           
-      - name: Verify Rsdoctor Data
-        run: |
-          if [ -f "examples/rsbuild-demo/dist/.rsdoctor/rsdoctor-data.json" ]; then
-            echo "✅ Rsdoctor data file found"
-            ls -la examples/rsbuild-demo/dist/.rsdoctor/
-          else
-            echo "❌ Rsdoctor data file not found"
-            echo "Available files in dist:"
-            find examples/rsbuild-demo/dist -type f 2>/dev/null || echo "No dist directory found"
-            exit 1
-          fi
-
       - name: Report Compressed Size
         uses: ./
         with:

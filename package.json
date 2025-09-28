@@ -38,6 +38,7 @@
     "@actions/artifact": "^2.3.2",
     "@actions/core": "^1.2.6",
     "@actions/github": "^4.0.0",
-    "size-plugin-core": "0.0.9"
+    "size-plugin-core": "0.0.9",
+    "yauzl": "^3.2.0"
   }
 }

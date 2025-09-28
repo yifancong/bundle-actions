@@ -49,49 +49,24 @@ export interface BundleAnalysis {
   }>;
 }
 
-/**
- * Format bytes to human readable string
- */
 function formatBytes(bytes: number): string {
   if (bytes === 0) return '0 B';
   
   const k = 1024;
   const sizes = ['B', 'KB', 'MB', 'GB'];
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
   
-  return `${(bytes / Math.pow(k, i)).toFixed(1)} ${sizes[i]}`;
+  const isNegative = bytes < 0;
+  const absBytes = Math.abs(bytes);
+  
+  if (absBytes === 0) return '0 B';
+  
+  const i = Math.floor(Math.log(absBytes) / Math.log(k));
+  const value = (absBytes / Math.pow(k, i)).toFixed(1);
+  
+  return `${isNegative ? '-' : ''}${value} ${sizes[i]}`;
 }
 
-/**
- * Default demo baseline data
- */
-const DEFAULT_DEMO_DATA: SizeData = {
-  totalSize: 103809024,
-  files: [
-    {
-      path: "dist/main.js",
-      size: 51380224,
-      gzipSize: 10276045,
-      brotliSize: 8220836
-    },
-    {
-      path: "dist/vendor.js",
-      size: 41943040,
-      gzipSize: 8388608,
-      brotliSize: 6291456
-    },
-    {
-      path: "dist/styles.css",
-      size: 10485760,
-      gzipSize: 2097152,
-      brotliSize: 1572864
-    }
-  ]
-};
 
-/**
- * Parse rsdoctor data and extract bundle analysis
- */
 export function parseRsdoctorData(filePath: string): BundleAnalysis | null {
   try {
     if (!fs.existsSync(filePath)) {
@@ -161,9 +136,6 @@ export function parseRsdoctorData(filePath: string): BundleAnalysis | null {
   }
 }
 
-/**
- * Load size data from JSON file (legacy support)
- */
 export function loadSizeData(filePath: string): SizeData | null {
   try {
     if (!fs.existsSync(filePath)) {
@@ -173,7 +145,6 @@ export function loadSizeData(filePath: string): SizeData | null {
     
     const data = JSON.parse(fs.readFileSync(filePath, 'utf8'));
     
-    // Calculate total size if not provided
     if (!data.totalSize && data.files) {
       data.totalSize = data.files.reduce((sum: number, file: any) => sum + (file.size || 0), 0);
     }
@@ -185,21 +156,18 @@ export function loadSizeData(filePath: string): SizeData | null {
   }
 }
 
-/**
- * Get demo baseline data
- */
-export function getDemoBaselineData(): SizeData {
-  return { ...DEFAULT_DEMO_DATA };
-}
 
-/**
- * Calculate size difference and format with emoji
- */
 function calculateDiff(current: number, baseline: number): { value: string; emoji: string } {
-  if (!baseline) return { value: 'N/A', emoji: '❓' };
+  if (!baseline || baseline === 0 || isNaN(baseline)) {
+    return { value: 'N/A', emoji: '❓' };
+  }
+  
+  if (isNaN(current)) {
+    return { value: 'N/A', emoji: '❓' };
+  }
   
   const diff = current - baseline;
-  const percent = baseline > 0 ? (diff / baseline) * 100 : 0;
+  const percent = (diff / baseline) * 100;
   
   if (Math.abs(percent) < 1) {
     return { value: `${formatBytes(diff)} (${percent.toFixed(1)}%)`, emoji: '➡️' };
@@ -210,16 +178,18 @@ function calculateDiff(current: number, baseline: number): { value: string; emoj
   }
 }
 
-/**
- * Generate detailed bundle analysis report
- */
 export async function generateBundleAnalysisReport(current: BundleAnalysis, baseline?: BundleAnalysis): Promise<void> {
-  // Start building the summary
   await summary
-    .addHeading('📦 Bundle Analysis Report', 2)
-    .addSeparator();
+    .addHeading('📦 Bundle Analysis Report', 2);
   
-  // Create main metrics table
+  if (!baseline) {
+    await summary
+      .addRaw('> ⚠️ **No baseline data found** - Unable to perform comparison analysis')
+      .addSeparator();
+  } else {
+    await summary.addSeparator();
+  }
+  
   const mainTable = [
     [
       { data: 'Metric', header: true },
@@ -230,31 +200,31 @@ export async function generateBundleAnalysisReport(current: BundleAnalysis, base
     [
       { data: '📊 Total Size', header: false },
       { data: formatBytes(current.totalSize), header: false },
-      { data: baseline ? formatBytes(baseline.totalSize) : 'N/A', header: false },
+      { data: baseline ? formatBytes(baseline.totalSize) : formatBytes(current.totalSize), header: false },
       { data: baseline ? calculateDiff(current.totalSize, baseline.totalSize).value : 'N/A', header: false }
     ],
     [
       { data: '📄 JavaScript', header: false },
       { data: formatBytes(current.jsSize), header: false },
-      { data: baseline ? formatBytes(baseline.jsSize) : 'N/A', header: false },
+      { data: baseline ? formatBytes(baseline.jsSize) : formatBytes(current.jsSize), header: false },
       { data: baseline ? calculateDiff(current.jsSize, baseline.jsSize).value : 'N/A', header: false }
     ],
     [
       { data: '🎨 CSS', header: false },
       { data: formatBytes(current.cssSize), header: false },
-      { data: baseline ? formatBytes(baseline.cssSize) : 'N/A', header: false },
+      { data: baseline ? formatBytes(baseline.cssSize) : formatBytes(current.cssSize), header: false },
       { data: baseline ? calculateDiff(current.cssSize, baseline.cssSize).value : 'N/A', header: false }
     ],
     [
       { data: '🌐 HTML', header: false },
       { data: formatBytes(current.htmlSize), header: false },
-      { data: baseline ? formatBytes(baseline.htmlSize) : 'N/A', header: false },
+      { data: baseline ? formatBytes(baseline.htmlSize) : formatBytes(current.htmlSize), header: false },
       { data: baseline ? calculateDiff(current.htmlSize, baseline.htmlSize).value : 'N/A', header: false }
     ],
     [
       { data: '📁 Other Assets', header: false },
       { data: formatBytes(current.otherSize), header: false },
-      { data: baseline ? formatBytes(baseline.otherSize) : 'N/A', header: false },
+      { data: baseline ? formatBytes(baseline.otherSize) : formatBytes(current.otherSize), header: false },
       { data: baseline ? calculateDiff(current.otherSize, baseline.otherSize).value : 'N/A', header: false }
     ]
   ];
@@ -263,84 +233,22 @@ export async function generateBundleAnalysisReport(current: BundleAnalysis, base
     .addTable(mainTable)
     .addSeparator();
   
-  // Add assets breakdown
-  if (current.assets && current.assets.length > 0) {
-    await summary.addHeading('📄 Assets Breakdown', 3);
-    
-    const assetTable = [
-      [
-        { data: 'File', header: true },
-        { data: 'Type', header: true },
-        { data: 'Size', header: true },
-        { data: 'Change', header: true }
-      ]
-    ];
-    
-    for (const asset of current.assets) {
-      const baselineAsset = baseline?.assets.find(a => a.path === asset.path);
-      const change = baselineAsset ? calculateDiff(asset.size, baselineAsset.size) : { value: 'N/A', emoji: '❓' };
-      
-      assetTable.push([
-        { data: asset.path, header: false },
-        { data: asset.type.toUpperCase(), header: false },
-        { data: formatBytes(asset.size), header: false },
-        { data: `${change.emoji} ${change.value}`, header: false }
-      ]);
-    }
-    
-    await summary.addTable(assetTable);
-    await summary.addSeparator();
-  }
   
-  // Add chunks analysis
-  if (current.chunks && current.chunks.length > 0) {
-    await summary.addHeading('🧩 Chunks Analysis', 3);
-    
-    const chunkTable = [
-      [
-        { data: 'Chunk Name', header: true },
-        { data: 'Size', header: true },
-        { data: 'Type', header: true },
-        { data: 'Change', header: true }
-      ]
-    ];
-    
-    for (const chunk of current.chunks) {
-      const baselineChunk = baseline?.chunks.find(c => c.name === chunk.name);
-      const change = baselineChunk ? calculateDiff(chunk.size, baselineChunk.size) : { value: 'N/A', emoji: '❓' };
-      
-      chunkTable.push([
-        { data: chunk.name, header: false },
-        { data: formatBytes(chunk.size), header: false },
-        { data: chunk.isInitial ? 'Initial' : 'Async', header: false },
-        { data: `${change.emoji} ${change.value}`, header: false }
-      ]);
-    }
-    
-    await summary.addTable(chunkTable);
-  }
   
-  // Add footer
   await summary
     .addSeparator()
     .addRaw('<sub>Generated by Bundle Size Action</sub>');
   
-  // Write the summary
   await summary.write();
   
   console.log('✅ Bundle analysis report generated successfully');
 }
 
-/**
- * Generate bundle size report card for GitHub Actions summary (legacy)
- */
 export async function generateSizeReport(current: SizeData, baseline?: SizeData): Promise<void> {
-  // Start building the summary
   await summary
     .addHeading('📦 Bundle Size Report', 2)
     .addSeparator();
   
-  // Create size report card
   const reportTable = [
     [
       { data: 'Metric', header: true },
@@ -363,7 +271,6 @@ export async function generateSizeReport(current: SizeData, baseline?: SizeData)
     .addTable(reportTable)
     .addSeparator();
   
-  // Add file details if available
   if (current.files && current.files.length > 0) {
     await summary.addHeading('📄 File Details', 3);
     
@@ -384,12 +291,10 @@ export async function generateSizeReport(current: SizeData, baseline?: SizeData)
     await summary.addTable(fileTable);
   }
   
-  // Add footer
   await summary
     .addSeparator()
     .addRaw('<sub>Generated by Bundle Size Action</sub>');
   
-  // Write the summary
   await summary.write();
   
   console.log('✅ Bundle size report card generated successfully');
