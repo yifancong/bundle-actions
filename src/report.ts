@@ -196,68 +196,176 @@ export function generateBundleAnalysisMarkdown(current: BundleAnalysis, baseline
   return markdown;
 }
 
-export async function generateBundleAnalysisReport(current: BundleAnalysis, baseline?: BundleAnalysis): Promise<void> {
-  await summary
-    .addHeading('📦 Bundle Analysis Report', 2);
+export async function generateBundleAnalysisReport(
+  current: BundleAnalysis, 
+  baseline?: BundleAnalysis,
+  options?: {
+    conclusion?: 'success' | 'failure' | 'neutral' | 'cancelled' | 'skipped' | 'timed_out';
+    status?: 'queued' | 'in_progress' | 'completed';
+    checkRunName?: string;
+    annotations?: Array<{
+      path: string;
+      start_line: number;
+      end_line: number;
+      annotation_level: 'notice' | 'warning' | 'failure';
+      message: string;
+      title?: string;
+    }>;
+  }
+): Promise<void> {
+  const { context } = require('@actions/github');
+  const { getOctokit } = require('@actions/github');
+  const { getInput } = require('@actions/core');
   
-  if (!baseline) {
-    await summary
-      .addRaw('> ⚠️ **No baseline data found** - Unable to perform comparison analysis')
-      .addSeparator();
-  } else {
-    await summary.addSeparator();
+  const octokit = getOctokit(getInput('github_token', { required: true }));
+  
+  // Determine conclusion based on bundle size changes
+  let conclusion: 'success' | 'failure' | 'neutral' | 'cancelled' | 'skipped' | 'timed_out' = 'success';
+  let annotations: any[] = [];
+  
+  if (baseline) {
+    const totalDiff = current.totalSize - baseline.totalSize;
+    const totalPercent = (totalDiff / baseline.totalSize) * 100;
+    
+    // Set conclusion based on size increase
+    if (totalPercent > 10) {
+      conclusion = 'failure';
+      annotations.push({
+        path: 'bundle-analysis',
+        start_line: 1,
+        end_line: 1,
+        annotation_level: 'failure' as const,
+        message: `Bundle size increased by ${formatBytes(totalDiff)} (${totalPercent.toFixed(1)}%)`,
+        title: 'Bundle Size Increase'
+      });
+    } else if (totalPercent > 5) {
+      conclusion = 'neutral';
+      annotations.push({
+        path: 'bundle-analysis',
+        start_line: 1,
+        end_line: 1,
+        annotation_level: 'warning' as const,
+        message: `Bundle size increased by ${formatBytes(totalDiff)} (${totalPercent.toFixed(1)}%)`,
+        title: 'Bundle Size Increase'
+      });
+    } else if (totalPercent < -5) {
+      annotations.push({
+        path: 'bundle-analysis',
+        start_line: 1,
+        end_line: 1,
+        annotation_level: 'notice' as const,
+        message: `Bundle size decreased by ${formatBytes(Math.abs(totalDiff))} (${Math.abs(totalPercent).toFixed(1)}%)`,
+        title: 'Bundle Size Decrease'
+      });
+    }
   }
   
-  const mainTable = [
-    [
-      { data: 'Metric', header: true },
-      { data: 'Current', header: true },
-      { data: 'Baseline', header: true },
-      { data: 'Change', header: true }
-    ],
-    [
-      { data: '📊 Total Size', header: false },
-      { data: formatBytes(current.totalSize), header: false },
-      { data: baseline ? formatBytes(baseline.totalSize) : formatBytes(current.totalSize), header: false },
-      { data: baseline ? calculateDiff(current.totalSize, baseline.totalSize).value : 'N/A', header: false }
-    ],
-    [
-      { data: '📄 JavaScript', header: false },
-      { data: formatBytes(current.jsSize), header: false },
-      { data: baseline ? formatBytes(baseline.jsSize) : formatBytes(current.jsSize), header: false },
-      { data: baseline ? calculateDiff(current.jsSize, baseline.jsSize).value : 'N/A', header: false }
-    ],
-    [
-      { data: '🎨 CSS', header: false },
-      { data: formatBytes(current.cssSize), header: false },
-      { data: baseline ? formatBytes(baseline.cssSize) : formatBytes(current.cssSize), header: false },
-      { data: baseline ? calculateDiff(current.cssSize, baseline.cssSize).value : 'N/A', header: false }
-    ],
-    [
-      { data: '🌐 HTML', header: false },
-      { data: formatBytes(current.htmlSize), header: false },
-      { data: baseline ? formatBytes(baseline.htmlSize) : formatBytes(current.htmlSize), header: false },
-      { data: baseline ? calculateDiff(current.htmlSize, baseline.htmlSize).value : 'N/A', header: false }
-    ],
-    [
-      { data: '📁 Other Assets', header: false },
-      { data: formatBytes(current.otherSize), header: false },
-      { data: baseline ? formatBytes(baseline.otherSize) : formatBytes(current.otherSize), header: false },
-      { data: baseline ? calculateDiff(current.otherSize, baseline.otherSize).value : 'N/A', header: false }
-    ]
-  ];
+  // Override conclusion if provided
+  if (options?.conclusion) {
+    conclusion = options.conclusion;
+  }
   
-  await summary
-    .addTable(mainTable)
-    .addSeparator();
+  // Add custom annotations if provided
+  if (options?.annotations) {
+    annotations.push(...options.annotations);
+  }
   
-  await summary
-    .addSeparator()
-    .addRaw('<sub>Generated by Bundle Size Action</sub>');
+  const checkRunSummary = `## 📦 Bundle Analysis Report
   
-  await summary.write();
-  
-  console.log('✅ Bundle analysis report generated successfully');
+${!baseline ? '> ⚠️ **No baseline data found** - Unable to perform comparison analysis' : ''}
+
+${generateBundleAnalysisMarkdown(current, baseline)}
+
+*Generated by Bundle Size Action*`;
+
+  try {
+    // Create check run
+    const checkRun = await octokit.rest.checks.create({
+      owner: context.repo.owner,
+      repo: context.repo.repo,
+      name: options?.checkRunName || 'Bundle Size Analysis',
+      head_sha: context.sha,
+      status: options?.status || 'completed',
+      conclusion: conclusion,
+      output: {
+        title: 'Bundle Size Analysis Complete',
+        summary: checkRunSummary,
+        text: generateBundleAnalysisMarkdown(current, baseline),
+        annotations: annotations.length > 0 ? annotations : undefined
+      }
+    });
+    
+    console.log(`✅ Created check run: ${checkRun.data.html_url}`);
+    console.log(`📊 Check run conclusion: ${conclusion}`);
+    if (annotations.length > 0) {
+      console.log(`📝 Added ${annotations.length} annotations`);
+    }
+  } catch (error) {
+    console.error(`❌ Failed to create check run: ${error}`);
+    
+    // Fallback to GitHub summary
+    await summary
+      .addHeading('📦 Bundle Analysis Report', 2);
+    
+    if (!baseline) {
+      await summary
+        .addRaw('> ⚠️ **No baseline data found** - Unable to perform comparison analysis')
+        .addSeparator();
+    } else {
+      await summary.addSeparator();
+    }
+    
+    const mainTable = [
+      [
+        { data: 'Metric', header: true },
+        { data: 'Current', header: true },
+        { data: 'Baseline', header: true },
+        { data: 'Change', header: true }
+      ],
+      [
+        { data: '📊 Total Size', header: false },
+        { data: formatBytes(current.totalSize), header: false },
+        { data: baseline ? formatBytes(baseline.totalSize) : formatBytes(current.totalSize), header: false },
+        { data: baseline ? calculateDiff(current.totalSize, baseline.totalSize).value : 'N/A', header: false }
+      ],
+      [
+        { data: '📄 JavaScript', header: false },
+        { data: formatBytes(current.jsSize), header: false },
+        { data: baseline ? formatBytes(baseline.jsSize) : formatBytes(current.jsSize), header: false },
+        { data: baseline ? calculateDiff(current.jsSize, baseline.jsSize).value : 'N/A', header: false }
+      ],
+      [
+        { data: '🎨 CSS', header: false },
+        { data: formatBytes(current.cssSize), header: false },
+        { data: baseline ? formatBytes(baseline.cssSize) : formatBytes(current.cssSize), header: false },
+        { data: baseline ? calculateDiff(current.cssSize, baseline.cssSize).value : 'N/A', header: false }
+      ],
+      [
+        { data: '🌐 HTML', header: false },
+        { data: formatBytes(current.htmlSize), header: false },
+        { data: baseline ? formatBytes(baseline.htmlSize) : formatBytes(current.htmlSize), header: false },
+        { data: baseline ? calculateDiff(current.htmlSize, baseline.htmlSize).value : 'N/A', header: false }
+      ],
+      [
+        { data: '📁 Other Assets', header: false },
+        { data: formatBytes(current.otherSize), header: false },
+        { data: baseline ? formatBytes(baseline.otherSize) : formatBytes(current.otherSize), header: false },
+        { data: baseline ? calculateDiff(current.otherSize, baseline.otherSize).value : 'N/A', header: false }
+      ]
+    ];
+    
+    await summary
+      .addTable(mainTable)
+      .addSeparator();
+    
+    await summary
+      .addSeparator()
+      .addRaw('<sub>Generated by Bundle Size Action</sub>');
+    
+    await summary.write();
+    
+    console.log('✅ Bundle analysis report generated successfully (fallback to summary)');
+  }
 }
 
 export async function generateSizeReport(current: SizeData, baseline?: SizeData): Promise<void> {

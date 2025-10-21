@@ -29,9 +29,6 @@ export async function uploadArtifact(filePath: string, commitHash?: string) {
     artifactName,
     [targetFilePath],
     path.dirname(targetFilePath),
-    {
-      continueOnError: false
-    }
   );
   
   return uploadResponse;
