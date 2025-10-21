@@ -125,10 +125,11 @@ function runRsdoctorViaNode(requirePath: string, args: string[] = []) {
           
           try {
             // 尝试定位包的入口（安装到工作区 node_modules 的情况下）
-            const cliEntry = require.resolve('@rsdoctor/cli/bin/rsdoctor', { paths: [process.cwd()] });
-            console.log(`🔍 Found rsdoctor CLI at: ${cliEntry}`);
+            const cliEntry = require.resolve('@rsdoctor/cli', { paths: [process.cwd()] });
+            const binCliEntry = path.join(path.dirname(cliEntry), 'bin', 'rsdoctor');
+            console.log(`🔍 Found rsdoctor CLI at: ${binCliEntry}`);
             
-            runRsdoctorViaNode(cliEntry, [
+            runRsdoctorViaNode(binCliEntry, [
               'bundle-diff', 
               '--html', 
               `--baseline=${baselineJsonPath}`, 
