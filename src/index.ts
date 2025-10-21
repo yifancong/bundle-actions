@@ -112,8 +112,9 @@ function isPullRequestEvent(): boolean {
       try {
         if (baselineJsonPath) {
           const tempOutDir = path.join(process.cwd(), '.rsdoctor-diff');
-          const cmd = 'rsdoctor';
+          const cmd = 'npx';
           const args = [
+            'rsdoctor',
             'bundle-diff',
             '--html',
             `--baseline=${baselineJsonPath}`,
