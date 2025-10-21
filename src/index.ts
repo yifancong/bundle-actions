@@ -6,6 +6,7 @@ import { loadSizeData, generateSizeReport, parseRsdoctorData, generateBundleAnal
 import path from 'path';
 import { execFile } from 'child_process';
 import { promisify } from 'util';
+import { spawnSync } from 'child_process';
 const execFileAsync = promisify(execFile);
 
 function isMergeEvent(): boolean {
@@ -16,6 +17,15 @@ function isMergeEvent(): boolean {
 function isPullRequestEvent(): boolean {
   const { context } = require('@actions/github');
   return context.eventName === 'pull_request';
+}
+
+function runRsdoctorViaNode(requirePath: string, args: string[] = []) {
+  const nodeExec = process.execPath; // 当前 node 可执行文件的绝对路径
+  console.log('process.execPath =', nodeExec);
+  console.log('Running:', nodeExec, requirePath, args.join(' '));
+  const r = spawnSync(nodeExec, [requirePath, ...args], { stdio: 'inherit' });
+  if (r.error) throw r.error;
+  if (r.status !== 0) throw new Error(`rsdoctor exited with code ${r.status}`);
 }
 
 (async () => {
@@ -113,44 +123,28 @@ function isPullRequestEvent(): boolean {
         if (baselineJsonPath) {
           const tempOutDir = path.join(process.cwd(), '.rsdoctor-diff');
           
-          // Try multiple approaches to run rsdoctor
-          let rsdoctorCmd = '';
-          let args: string[] = [];
-          
           try {
-            // First try: use npx with full package name
-            rsdoctorCmd = 'npx';
-            args = [
-              '@rsdoctor/cli',
-              'bundle-diff',
-              '--html',
-              `--baseline=${baselineJsonPath}`,
-              `--current=${fullPath}`
-            ];
-            console.log(`🛠️ Running rsdoctor: ${rsdoctorCmd} ${args.join(' ')}`);
-            await execFileAsync(rsdoctorCmd, args, { cwd: tempOutDir, shell: false });
-          } catch (npxError) {
-            console.log(`⚠️ npx approach failed: ${npxError}`);
+            // 尝试定位包的入口（安装到工作区 node_modules 的情况下）
+            const cliEntry = require.resolve('@rsdoctor/cli/dist/index.js', { paths: [process.cwd()] });
+            console.log(`🔍 Found rsdoctor CLI at: ${cliEntry}`);
             
+            runRsdoctorViaNode(cliEntry, [
+              'bundle-diff', 
+              '--html', 
+              `--baseline=${baselineJsonPath}`, 
+              `--current=${fullPath}`
+            ]);
+          } catch (e) {
+            console.log(`⚠️ rsdoctor CLI not found in node_modules: ${e}`);
+            
+            // Fallback: try npx approach
             try {
-              // Second try: use node directly with installed package
-              rsdoctorCmd = 'node';
-              args = [
-                path.join(process.cwd(), 'node_modules', '@rsdoctor', 'cli', 'dist', 'index.js'),
-                'bundle-diff',
-                '--html',
-                `--baseline=${baselineJsonPath}`,
-                `--current=${fullPath}`
-              ];
-              console.log(`🛠️ Running rsdoctor: ${rsdoctorCmd} ${args.join(' ')}`);
-              await execFileAsync(rsdoctorCmd, args, { cwd: tempOutDir, shell: false });
-            } catch (nodeError) {
-              console.log(`⚠️ node approach failed: ${nodeError}`);
-              
-              // Third try: use shell command
               const shellCmd = `npx @rsdoctor/cli bundle-diff --html --baseline="${baselineJsonPath}" --current="${fullPath}"`;
-              console.log(`🛠️ Running rsdoctor: ${shellCmd}`);
+              console.log(`🛠️ Running rsdoctor via npx: ${shellCmd}`);
               await execFileAsync('sh', ['-c', shellCmd], { cwd: tempOutDir });
+            } catch (npxError) {
+              console.log(`⚠️ npx approach also failed: ${npxError}`);
+              throw new Error(`Failed to run rsdoctor: ${e.message}`);
             }
           }
 
