@@ -121,7 +121,7 @@ function runRsdoctorViaNode(requirePath: string, args: string[] = []) {
       // Generate rsdoctor HTML diff if baseline JSON exists
       try {
         if (baselineJsonPath) {
-          const tempOutDir = path.join(process.cwd(), '.rsdoctor-diff');
+          const tempOutDir = process.cwd();
           
           try {
             // 尝试定位包的入口（安装到工作区 node_modules 的情况下）
