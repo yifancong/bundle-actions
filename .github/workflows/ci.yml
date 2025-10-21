@@ -19,16 +19,24 @@ jobs:
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Install Pnpm
+      - name: Setup Pnpm
         run: |
           npm install -g corepack@latest --force
           corepack enable
 
-      - name: Setup Node.js 22.x
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+      - name: Setup Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
-          node-version: 22.x
+          node-version: 22
           cache: 'pnpm'
+
+      # Update npm to the latest version to enable OIDC
+      - name: Update npm
+        run: |
+          npm install -g npm@latest
+          npm --version
+          node --version
+          npx -v
 
       - name: Install Dependencies and Build
         run: |
