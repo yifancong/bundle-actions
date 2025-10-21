@@ -125,7 +125,7 @@ function runRsdoctorViaNode(requirePath: string, args: string[] = []) {
           
           try {
             // 尝试定位包的入口（安装到工作区 node_modules 的情况下）
-            const cliEntry = require.resolve('@rsdoctor/cli/dist/index.js', { paths: [process.cwd()] });
+            const cliEntry = require.resolve('@rsdoctor/cli', { paths: [process.cwd()] });
             console.log(`🔍 Found rsdoctor CLI at: ${cliEntry}`);
             
             runRsdoctorViaNode(cliEntry, [
