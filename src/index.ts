@@ -112,16 +112,47 @@ function isPullRequestEvent(): boolean {
       try {
         if (baselineJsonPath) {
           const tempOutDir = path.join(process.cwd(), '.rsdoctor-diff');
-          const cmd = 'npx';
-          const args = [
-            'rsdoctor',
-            'bundle-diff',
-            '--html',
-            `--baseline=${baselineJsonPath}`,
-            `--current=${fullPath}`
-          ];
-          console.log(`🛠️ Running rsdoctor: ${cmd} ${args.join(' ')}`);
-          await execFileAsync(cmd, args, { cwd: tempOutDir, shell: false });
+          
+          // Try multiple approaches to run rsdoctor
+          let rsdoctorCmd = '';
+          let args: string[] = [];
+          
+          try {
+            // First try: use npx with full package name
+            rsdoctorCmd = 'npx';
+            args = [
+              '@rsdoctor/cli',
+              'bundle-diff',
+              '--html',
+              `--baseline=${baselineJsonPath}`,
+              `--current=${fullPath}`
+            ];
+            console.log(`🛠️ Running rsdoctor: ${rsdoctorCmd} ${args.join(' ')}`);
+            await execFileAsync(rsdoctorCmd, args, { cwd: tempOutDir, shell: false });
+          } catch (npxError) {
+            console.log(`⚠️ npx approach failed: ${npxError}`);
+            
+            try {
+              // Second try: use node directly with installed package
+              rsdoctorCmd = 'node';
+              args = [
+                path.join(process.cwd(), 'node_modules', '@rsdoctor', 'cli', 'dist', 'index.js'),
+                'bundle-diff',
+                '--html',
+                `--baseline=${baselineJsonPath}`,
+                `--current=${fullPath}`
+              ];
+              console.log(`🛠️ Running rsdoctor: ${rsdoctorCmd} ${args.join(' ')}`);
+              await execFileAsync(rsdoctorCmd, args, { cwd: tempOutDir, shell: false });
+            } catch (nodeError) {
+              console.log(`⚠️ node approach failed: ${nodeError}`);
+              
+              // Third try: use shell command
+              const shellCmd = `npx @rsdoctor/cli bundle-diff --html --baseline="${baselineJsonPath}" --current="${fullPath}"`;
+              console.log(`🛠️ Running rsdoctor: ${shellCmd}`);
+              await execFileAsync('sh', ['-c', shellCmd], { cwd: tempOutDir });
+            }
+          }
 
           // Heuristically locate generated HTML in output dir
           const diffHtmlPath = path.join(tempOutDir, 'rsdoctor-diff.html');
