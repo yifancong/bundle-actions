@@ -14,6 +14,8 @@ function isMergeEvent(): boolean {
   return context.eventName === 'push' && context.payload.ref === `refs/heads/${context.payload.repository.default_branch}`;
 }
 
+console.log(11)
+
 function isPullRequestEvent(): boolean {
   const { context } = require('@actions/github');
   return context.eventName === 'pull_request';
