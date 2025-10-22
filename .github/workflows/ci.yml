@@ -13,7 +13,7 @@ jobs:
       issues: write
       # Allow commenting on pull requests
       pull-requests: write
-      
+
     steps:
       - name: Checkout
         uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955 # v4
@@ -52,7 +52,7 @@ jobs:
           pnpm run build
           
       - name: Report Compressed Size
-        uses: ./
+        uses: yifancong/bundle-actions@main
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           file_path: 'examples/rsbuild-demo/dist/.rsdoctor/rsdoctor-data.json'
