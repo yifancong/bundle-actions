@@ -34,21 +34,6 @@ const App = () => {
           <p>Full support for React 18+ with concurrent features.</p>
         </div>
       </div>
-      
-      <div className="stats-container">
-        <div className="stat-item">
-          <span className="stat-number">100%</span>
-          <span className="stat-label">TypeScript</span>
-        </div>
-        <div className="stat-item">
-          <span className="stat-number">Fast</span>
-          <span className="stat-label">Build Speed</span>
-        </div>
-        <div className="stat-item">
-          <span className="stat-number">Modern</span>
-          <span className="stat-label">Tooling</span>
-        </div>
-      </div>
     </div>
   );
 };

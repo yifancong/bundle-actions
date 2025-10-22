@@ -52,7 +52,7 @@ jobs:
           pnpm run build
           
       - name: Report Compressed Size
-        uses: @yifancong/bundle-actions@v0.0.1
+        uses: yifancong/bundle-actions
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           file_path: 'examples/rsbuild-demo/dist/.rsdoctor/rsdoctor-data.json'
