@@ -32,9 +32,6 @@ function runRsdoctorViaNode(requirePath: string, args: string[] = []) {
 
 (async () => {
   try {
-    // Install @rsdoctor/client globally first
-    await installRsdoctorClient();
-    
     const githubService = new GitHubService();
     
     const filePath = getInput('file_path');
