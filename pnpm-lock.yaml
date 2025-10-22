@@ -7,7 +7,7 @@ settings:
 importers:
 
   .:
-    dependencies:
+    devDependencies:
       '@actions/artifact':
         specifier: ^2.3.2
         version: 2.3.2
@@ -23,19 +23,18 @@ importers:
       '@rsdoctor/client':
         specifier: 1.3.3-beta.2
         version: 1.3.3-beta.2
-      size-plugin-core:
-        specifier: 0.0.9
-        version: 0.0.9
-      yauzl:
-        specifier: ^3.2.0
-        version: 3.2.0
-    devDependencies:
       '@rslib/core':
         specifier: ^0.13.2
         version: 0.13.3(typescript@5.4.5)
       '@types/node':
         specifier: ^24.5.2
         version: 24.9.1
+      size-plugin-core:
+        specifier: 0.0.9
+        version: 0.0.9
+      yauzl:
+        specifier: ^3.2.0
+        version: 3.2.0
 
   examples/rsbuild-demo:
     dependencies:
