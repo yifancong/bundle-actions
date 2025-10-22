@@ -72,8 +72,6 @@ export async function downloadArtifact(artifactId: number, fileName: string) {
     const jsonData = JSON.parse(fileContent);
     
     console.log('--- Downloaded Artifact JSON Data ---');
-    console.log(jsonData);
-    console.log('------------------------------------');
     
     await fs.promises.unlink(zipPath);
     
