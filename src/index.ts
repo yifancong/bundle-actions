@@ -9,6 +9,19 @@ import { promisify } from 'util';
 import { spawnSync } from 'child_process';
 const execFileAsync = promisify(execFile);
 
+// Global install @rsdoctor/client
+async function installRsdoctorClient() {
+  try {
+    console.log('📦 Installing @rsdoctor/client@1.3.3-beta.2 globally...');
+    const { execSync } = require('child_process');
+    execSync('npm install -g @rsdoctor/client@1.3.3-beta.2', { stdio: 'inherit' });
+    console.log('✅ Successfully installed @rsdoctor/client globally');
+  } catch (error) {
+    console.warn(`⚠️ Failed to install @rsdoctor/client globally: ${error}`);
+    console.log('🔄 Continuing without global installation...');
+  }
+}
+
 function isMergeEvent(): boolean {
   const { context } = require('@actions/github');
   return context.eventName === 'push' && context.payload.ref === `refs/heads/${context.payload.repository.default_branch}`;
@@ -30,6 +43,9 @@ function runRsdoctorViaNode(requirePath: string, args: string[] = []) {
 
 (async () => {
   try {
+    // Install @rsdoctor/client globally first
+    await installRsdoctorClient();
+    
     const githubService = new GitHubService();
     
     const filePath = getInput('file_path');
