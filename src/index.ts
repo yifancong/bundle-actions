@@ -11,7 +11,8 @@ const execFileAsync = promisify(execFile);
 
 function isMergeEvent(): boolean {
   const { context } = require('@actions/github');
-  return context.eventName === 'push' && context.payload.ref === `refs/heads/${context.payload.repository.default_branch}`;
+  const targetBranch = getInput('target_branch') || context.payload.repository.default_branch || 'main';
+  return context.eventName === 'push' && context.payload.ref === `refs/heads/${targetBranch}`;
 }
 
 function isPullRequestEvent(): boolean {
