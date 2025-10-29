@@ -1,4 +1,3 @@
-import { setFailed, summary } from '@actions/core';
 import path from 'path';
 import * as fs from 'fs';
 import { GitHubService } from './github';
@@ -20,6 +19,7 @@ export async function downloadArtifact(artifactId: number, fileName: string) {
     await fs.promises.writeFile(zipPath, buffer);
     
     console.log(`✅ Downloaded artifact zip to: ${zipPath}`);
+    
     await new Promise<void>((resolve, reject) => {
       yauzl.open(zipPath, { lazyEntries: true }, (err, zipfile) => {
         if (err) return reject(err);
@@ -72,8 +72,6 @@ export async function downloadArtifact(artifactId: number, fileName: string) {
     const jsonData = JSON.parse(fileContent);
     
     console.log('--- Downloaded Artifact JSON Data ---');
-    console.log(jsonData);
-    console.log('------------------------------------');
     
     await fs.promises.unlink(zipPath);
     
@@ -92,13 +90,6 @@ export async function downloadArtifactByCommitHash(commitHash: string, fileName:
   console.log(`🔍 Looking for artifact with commit hash: ${commitHash}`);
   
   const githubService = new GitHubService();
-  
-  try {
-    await githubService.verifyTokenPermissions();
-  } catch (permissionError) {
-    console.warn(`⚠️  Token permission check failed: ${permissionError.message}`);
-    console.log(`🔄 Continuing with artifact search...`);
-  }
   
   console.log(`📋 Searching for artifacts matching commit hash: ${commitHash}`);
   const artifact = await githubService.findArtifactByNamePattern(commitHash);

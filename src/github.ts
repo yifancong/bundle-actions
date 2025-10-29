@@ -30,53 +30,13 @@ export class GitHubService {
     console.log(`🔧 GitHub Service initialized for: ${this.repository.owner}/${this.repository.repo}`);
   }
 
-  async verifyTokenPermissions(): Promise<void> {
-    try {
-      console.log('🔍 Verifying GitHub token permissions...');
-      
-      const repoResponse = await this.octokit.rest.repos.get({
-        owner: this.repository.owner,
-        repo: this.repository.repo
-      });
-      
-      console.log(`✅ Repository access verified: ${repoResponse.data.name}`);
-      console.log(`📊 Repository is private: ${repoResponse.data.private}`);
-      const actionsResponse = await this.octokit.rest.actions.listArtifactsForRepo({
-        owner: this.repository.owner,
-        repo: this.repository.repo,
-        per_page: 1
-      });
-      
-      console.log(`✅ Actions access verified: ${actionsResponse.data.total_count} artifacts found`);
-      
-      try {
-        const branchResponse = await this.octokit.rest.repos.getBranch({
-          owner: this.repository.owner,
-          repo: this.repository.repo,
-          branch: 'main'
-        });
-        console.log(`✅ Branch access verified: ${branchResponse.data.name}`);
-      } catch (branchError) {
-        console.warn(`⚠️  Branch access failed: ${branchError.message}`);
-      }
-      
-    } catch (error) {
-      console.error(`❌ Token permission verification failed: ${error.message}`);
-      console.error(`💡 This usually means:`);
-      console.error(`   - Token lacks 'repo' permission for private repositories`);
-      console.error(`   - Token lacks 'actions:read' permission for artifacts`);
-      console.error(`   - Token is expired or invalid`);
-      console.error(`   - Repository access is restricted`);
-      throw error;
-    }
-  }
-
   getCurrentCommitHash(): string {
     return execSync('git rev-parse --short=10 HEAD', { encoding: 'utf8' }).trim();
   }
 
   getTargetBranch(): string {
     const targetBranch = getInput('target_branch') || 'main';
+    console.log(`🔍 Target branch:::::: ${targetBranch}`);
     return targetBranch;
   }
 
@@ -191,26 +151,15 @@ export class GitHubService {
         }
       }
 
-      console.log(`🔄 All methods failed, using current commit hash as fallback...`);
-      const currentCommitHash = this.getCurrentCommitHash();
-      console.log(`⚠️  Using current commit hash as baseline: ${currentCommitHash}`);
-      console.log(`💡 This means no baseline comparison will be available`);
-      return currentCommitHash;
+      console.error(`❌ All methods to get target branch commit have failed`);
+      throw new Error(`Unable to get target branch (${targetBranch}) commit hash. Please ensure the branch exists and you have correct permissions.`);
       
     } catch (error) {
       console.error(`❌ Failed to get target branch commit: ${error}`);
       console.error(`Repository: ${this.repository.owner}/${this.repository.repo}`);
       console.error(`Target branch: ${targetBranch}`);
       
-      console.log(`🆘 Using current commit as ultimate fallback...`);
-      try {
-        const currentCommitHash = this.getCurrentCommitHash();
-        console.log(`⚠️  Using current commit hash as baseline: ${currentCommitHash}`);
-        return currentCommitHash;
-      } catch (fallbackError) {
-        console.error(`❌ Even fallback failed: ${fallbackError}`);
-        throw new Error(`Unable to get any commit hash: ${error.message}`);
-      }
+      throw new Error(`Failed to get target branch (${targetBranch}) commit: ${error.message}`);
     }
   }
 
@@ -230,8 +179,8 @@ export class GitHubService {
     const artifacts = await this.listArtifacts();
     
     console.log(`Looking for artifacts matching pattern: ${pattern}`);
-    console.log(`Available artifacts: ${JSON.stringify(artifacts.artifacts.map(a => ({name: a.name, id: a.id})))}`);
-
+    console.log(`Available artifacts: ${artifacts.artifacts.map(a => a.name).join(', ')}`);
+    
     const matchingArtifacts = artifacts.artifacts.filter(artifact => 
       artifact.name.includes(pattern)
     );
