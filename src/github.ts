@@ -36,6 +36,7 @@ export class GitHubService {
 
   getTargetBranch(): string {
     const targetBranch = getInput('target_branch') || 'main';
+    console.log(`🔍 Target branch:::::: ${targetBranch}`);
     return targetBranch;
   }
 
