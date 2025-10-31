@@ -11,12 +11,57 @@ const execFileAsync = promisify(execFile);
 
 function isMergeEvent(): boolean {
   const { context } = require('@actions/github');
-  return context.eventName === 'push' && context.payload.ref === `refs/heads/${context.payload.repository.default_branch}`;
+  const isPR = context.eventName === 'pull_request';
+  
+  if (isPR) {
+    const prAction = context.payload.action;
+    const prMerged = context.payload.pull_request?.merged;
+    const prNumber = context.payload.pull_request?.number;
+    const baseRef = context.payload.pull_request?.base?.ref;
+    const headRef = context.payload.pull_request?.head?.ref;
+    
+    // Check if this is a merge event: PR closed and merged
+    const isMerge = prAction === 'closed' && prMerged === true;
+    
+    if (isMerge) {
+      console.log(`🔄 Detected merge event: pull request closed and merged`);
+      console.log(`   Event: ${context.eventName}, Action: ${prAction}`);
+      console.log(`   PR #${prNumber}: ${headRef} -> ${baseRef}`);
+      console.log(`   Merged: ${prMerged}`);
+      console.log(`   This is a merge event - branch was merged to ${baseRef}`);
+    }
+    
+    return isMerge;
+  }
+  
+  return false;
 }
 
 function isPullRequestEvent(): boolean {
   const { context } = require('@actions/github');
-  return context.eventName === 'pull_request';
+  const isPR = context.eventName === 'pull_request';
+  
+  if (isPR) {
+    const prAction = context.payload.action;
+    const prMerged = context.payload.pull_request?.merged;
+    const prNumber = context.payload.pull_request?.number;
+    const baseRef = context.payload.pull_request?.base?.ref;
+    const headRef = context.payload.pull_request?.head?.ref;
+    
+    // Skip if PR is closed and merged - this should be handled by isMergeEvent
+    if (prAction === 'closed' && prMerged === true) {
+      console.log(`ℹ️  PR is closed and merged - this should be handled by merge event logic`);
+      return false;
+    }
+    
+    console.log(`📥 Detected pull request event`);
+    console.log(`   Action: ${prAction}`);
+    console.log(`   PR #${prNumber}: ${headRef} -> ${baseRef}`);
+    console.log(`   Merged: ${prMerged}`);
+    console.log(`   This is a PR review/update event - comparing with baseline`);
+  }
+  
+  return isPR;
 }
 
 function runRsdoctorViaNode(requirePath: string, args: string[] = []) {
@@ -51,8 +96,14 @@ function runRsdoctorViaNode(requirePath: string, args: string[] = []) {
     const artifactNamePattern = `${pathParts.join('-')}-${fileNameWithoutExt}-`;
     console.log(`Artifact name pattern: ${artifactNamePattern}`);
     
+    console.log('\n' + '='.repeat(60));
+    console.log('📊 Event Type Detection');
+    console.log('='.repeat(60));
+    
     if (isMergeEvent()) {
-      console.log('🔄 Detected merge event - uploading current branch artifact only');
+      console.log('\n✅ Scenario: MERGE EVENT (branch merged to target branch)');
+      console.log('   Action: Upload artifact as baseline for future PRs');
+      console.log('   This happens when PR is closed and merged');
       
       const uploadResponse = await uploadArtifact(fullPath, currentCommitHash);
       
@@ -73,7 +124,10 @@ function runRsdoctorViaNode(requirePath: string, args: string[] = []) {
       }
       
     } else if (isPullRequestEvent()) {
-      console.log('📥 Detected pull request event - downloading target branch artifact if exists');
+      console.log('\n✅ Scenario: PULL REQUEST EVENT (PR created/updated)');
+      console.log('   Action: Download baseline artifact and compare');
+      console.log('   This happens when PR is opened, updated, or synchronized');
+      console.log('   NOTE: This is NOT the merge event - merge will trigger separate merge event');
       
       const currentBundleAnalysis = parseRsdoctorData(fullPath);
       if (!currentBundleAnalysis) {
