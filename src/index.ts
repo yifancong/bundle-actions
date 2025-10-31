@@ -1,5 +1,5 @@
 import { setFailed, getInput, summary } from '@actions/core';
-import { uploadArtifact } from './upload';
+import { uploadArtifact, hashPath } from './upload';
 import { downloadArtifactByCommitHash } from './download';
 import { GitHubService } from './github';
 import { loadSizeData, generateSizeReport, parseRsdoctorData, generateBundleAnalysisReport, generateBundleAnalysisMarkdown, BundleAnalysis } from './report';
@@ -93,7 +93,8 @@ function runRsdoctorViaNode(requirePath: string, args: string[] = []) {
     const currentCommitHash = githubService.getCurrentCommitHash();
     console.log(`Current commit hash: ${currentCommitHash}`);
     
-    const artifactNamePattern = `${pathParts.join('-')}-${fileNameWithoutExt}-`;
+    const pathHash = hashPath(pathParts, fileNameWithoutExt);
+    const artifactNamePattern = `${pathHash}-`;
     console.log(`Artifact name pattern: ${artifactNamePattern}`);
     
     console.log('\n' + '='.repeat(60));
@@ -142,7 +143,7 @@ function runRsdoctorViaNode(requirePath: string, args: string[] = []) {
         const targetCommitHash = await githubService.getTargetBranchLatestCommit();
         console.log(`✅ Target branch commit hash: ${targetCommitHash}`);
         
-        const targetArtifactName = `${pathParts.join('-')}-${fileNameWithoutExt}-${targetCommitHash}${fileExt}`;
+        const targetArtifactName = `${pathHash}-${targetCommitHash}${fileExt}`;
         console.log(`🔍 Looking for target artifact: ${targetArtifactName}`);
         
         try {
